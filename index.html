@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="apple-touch-icon" href="https://augustineiacopelli.github.io/appaday/icons/165.png">
+<meta name="apple-mobile-web-app-title" content="Home Upkeep">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="https://augustineiacopelli.github.io/appaday/manifests/165.webmanifest">
+<script src="https://augustineiacopelli.github.io/appaday/save.js" defer></script>
+<title>Home Maintenance Log</title>
+<meta name="description" content="Track recurring home upkeep and warranty dates in one list. Tap Done and the next due date rolls forward. Stored on your device.">
+<meta name="theme-color" content="#0e1217">
+<style>
+:root{
+  --bg:#0e1217;--surface:#171d25;--surface2:#1e2630;--line:#2a3544;
+  --text:#e8edf3;--muted:#93a1b3;--accent:#5eb8ff;--accent-ink:#06121c;
+  --over:#ff8a8a;--over-bg:#3a1c20;--soon:#ffc14d;--soon-bg:#3a2d12;--ok:#6ee7a0;--ok-bg:#12301f;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--text);
+  font:1rem/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:calc(6rem + env(safe-area-inset-bottom));overflow-x:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:.75rem;
+  background:rgba(14,18,23,.94);border-bottom:1px solid var(--line);
+  padding:.55rem 1rem .55rem;padding-left:max(1rem,env(safe-area-inset-left));padding-right:max(1rem,env(safe-area-inset-right));
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.bar .num{font-weight:800;font-size:.8rem;letter-spacing:.06em;color:var(--accent-ink);background:var(--accent);border-radius:999px;padding:.15rem .55rem}
+.bar .name{flex:1;font-weight:700;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar a{color:var(--accent);text-decoration:none;font-size:.88rem;min-height:44px;display:flex;align-items:center;padding:0 .25rem}
+
+.wrap{width:100%;max-width:40rem;margin:0 auto;padding:1rem;padding-left:max(1rem,env(safe-area-inset-left));padding-right:max(1rem,env(safe-area-inset-right))}
+
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:.7rem .5rem;text-align:center;min-height:44px}
+.tile .n{display:block;font-size:1.9rem;font-weight:800;line-height:1.1}
+.tile .l{display:block;font-size:.75rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tile.over .n{color:var(--over)}.tile.soon .n{color:var(--soon)}.tile.all .n{color:var(--accent)}
+.tile[aria-pressed="true"]{border-color:var(--accent)}
+
+.tools{display:flex;gap:.6rem;align-items:center;margin:1rem 0 .6rem;position:relative}
+.btn{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);padding:0 1rem;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--over)}
+.tools .add{flex:1}
+.tools .more{width:44px;padding:0;font-size:1.3rem;line-height:1}
+.menu{position:absolute;right:0;top:calc(100% + .35rem);z-index:15;min-width:13rem;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:.35rem;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;min-height:44px;padding:0 .8rem;border-radius:8px}
+.menu button:hover,.menu button:focus-visible{background:var(--surface)}
+
+.chips{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.35rem;margin-bottom:.4rem;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--surface);padding:0 .95rem;font-size:.92rem;font-weight:600;color:var(--muted)}
+.chip b{font-weight:700;margin-left:.3rem;color:var(--text)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip[aria-pressed="true"] b{color:var(--accent-ink)}
+
+.list{list-style:none;margin:0;padding:0;display:grid;gap:.65rem}
+.card{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:var(--r);overflow:hidden}
+.card.s-overdue{border-left-color:var(--over)}
+.card.s-soon{border-left-color:var(--soon)}
+.card .row{display:flex;align-items:stretch}
+.card .head{flex:1;min-width:0;text-align:left;background:none;border:0;padding:.75rem .8rem;display:block}
+.card .title{display:block;font-weight:700;font-size:1.02rem;overflow-wrap:anywhere}
+.card .meta{display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:center;margin-top:.3rem;font-size:.85rem;color:var(--muted)}
+.pill{display:inline-block;border-radius:999px;padding:.1rem .6rem;font-size:.8rem;font-weight:700}
+.s-overdue .pill{background:var(--over-bg);color:var(--over)}
+.s-soon .pill{background:var(--soon-bg);color:var(--soon)}
+.s-ok .pill{background:var(--ok-bg);color:var(--ok)}
+.tag{border:1px solid var(--line);border-radius:6px;padding:0 .4rem;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}
+.card .done{flex:none;align-self:center;margin:.5rem .65rem .5rem 0;min-width:4.5rem;min-height:44px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:800}
+.card .detail{border-top:1px solid var(--line);padding:.7rem .9rem .8rem;font-size:.9rem;color:var(--muted);display:grid;gap:.35rem}
+.card .detail .notes{color:var(--text);overflow-wrap:anywhere;white-space:pre-wrap}
+.card .acts{display:flex;gap:.5rem;margin-top:.4rem}
+.card .acts .btn{flex:1}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:1.6rem 1.1rem;text-align:center}
+.empty h2{margin:0 0 .3rem;font-size:1.15rem}
+.empty p{margin:0 0 1rem;color:var(--muted)}
+.empty .btns{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
+.note{margin:.8rem 0 0;padding:.6rem .8rem;border-radius:10px;background:var(--soon-bg);color:var(--soon);font-size:.88rem}
+.foot{margin:1.4rem 0 0;color:var(--muted);font-size:.8rem;text-align:center}
+
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6)}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:92vh;max-height:92dvh;overflow-y:auto;
+  background:var(--surface);border-top:1px solid var(--line);border-radius:20px 20px 0 0;
+  padding:1rem 1rem calc(1.2rem + env(safe-area-inset-bottom));
+  margin:0 auto;max-width:40rem;animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.sheet h2{margin:0 0 .8rem;font-size:1.15rem}
+.field{display:grid;gap:.3rem;margin-bottom:.85rem}
+.field label,.field .lab{font-size:.82rem;color:var(--muted);font-weight:600}
+.field input[type=text],.field input[type=number],.field input[type=date],.field select,.field textarea{
+  width:100%;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:.55rem .7rem;font-size:16px}
+.field textarea{min-height:4.5rem;resize:vertical}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.seg label{display:block;position:relative}
+.seg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;font-size:.92rem;color:var(--muted)}
+.seg input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.every{display:grid;grid-template-columns:5rem 1fr;gap:.5rem}
+.err{color:var(--over);font-size:.88rem;min-height:1.2em;margin:0 0 .5rem}
+.sheet .acts{display:flex;gap:.6rem}
+.sheet .acts .btn{flex:1}
+
+.toast{position:fixed;left:0;right:0;bottom:calc(1rem + env(safe-area-inset-bottom));z-index:60;display:flex;justify-content:center;padding:0 1rem;pointer-events:none}
+.toast .in{pointer-events:auto;display:flex;align-items:center;gap:.8rem;max-width:36rem;background:#2b3646;border:1px solid var(--line);border-radius:14px;padding:.35rem .4rem .35rem 1rem;box-shadow:0 10px 28px rgba(0,0,0,.5)}
+.toast .msg{font-size:.92rem;overflow-wrap:anywhere}
+.toast button{flex:none;min-height:44px;padding:0 1rem;border-radius:10px;border:0;background:none;color:var(--accent);font-weight:800}
+
+.picker .custom{width:100%;margin-bottom:.7rem}
+.picker .find{width:100%;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:.55rem .7rem;font-size:16px;margin-bottom:.4rem}
+.picker .hint{margin:.1rem 0 .6rem;color:var(--muted);font-size:.85rem}
+.pk-group{margin:.7rem 0 .2rem;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.pk-row{display:flex;align-items:center;justify-content:space-between;gap:.7rem;width:100%;min-height:48px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:.4rem .2rem}
+.pk-row:hover,.pk-row:focus-visible{background:var(--surface2)}
+.pk-row .pn{font-weight:600;overflow-wrap:anywhere}
+.pk-row .pe{flex:none;font-size:.82rem;color:var(--muted);text-align:right}
+.pk-row .pe i{font-style:normal;color:var(--ok);margin-right:.4rem}
+.pk-none{color:var(--muted);text-align:center;padding:1rem 0}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+@media (min-width:700px){.summary .tile .n{font-size:2.2rem}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <span class="num">165</span>
+  <span class="name">Home Maintenance Log</span>
+  <a href="https://augustineiacopelli.github.io/appaday/">Portfolio</a>
+</header>
+
+<main class="wrap">
+  <section class="summary" aria-label="Summary">
+    <button class="tile over" id="tOver" data-filter="overdue" aria-pressed="false"><span class="n" id="nOver">0</span><span class="l">Overdue</span></button>
+    <button class="tile soon" id="tSoon" data-filter="soon" aria-pressed="false"><span class="n" id="nSoon">0</span><span class="l">Due soon</span></button>
+    <button class="tile all" id="tAll" data-filter="all" aria-pressed="false"><span class="n" id="nAll">0</span><span class="l">Tracked</span></button>
+  </section>
+
+  <div class="tools">
+    <button class="btn primary add" id="btnAdd">+ Add item</button>
+    <button class="btn more" id="btnMore" aria-label="More options" aria-haspopup="true" aria-expanded="false">&#8943;</button>
+    <div class="menu" id="menu" role="menu" hidden>
+      <button role="menuitem" id="miExport">Export JSON</button>
+      <button role="menuitem" id="miImport">Import JSON</button>
+      <button role="menuitem" id="miStarter">Add starter set</button>
+    </div>
+    <input type="file" id="fileIn" accept="application/json,.json" hidden>
+  </div>
+
+  <div class="chips" id="chips" role="group" aria-label="Filter">
+    <button class="chip" data-filter="all" aria-pressed="true">All<b id="cAll">0</b></button>
+    <button class="chip" data-filter="overdue" aria-pressed="false">Overdue<b id="cOver">0</b></button>
+    <button class="chip" data-filter="soon" aria-pressed="false">Soon<b id="cSoon">0</b></button>
+    <button class="chip" data-filter="warranty" aria-pressed="false">Warranties<b id="cWar">0</b></button>
+  </div>
+
+  <ul class="list" id="list"></ul>
+  <div id="emptyBox"></div>
+  <p class="note" id="storeNote" hidden>Storage is blocked in this browser, so your list will be lost when you close this page. Use Export JSON to keep a copy.</p>
+  <p class="foot">Stored on this device only. No account, no tracking.</p>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet picker" id="picker" role="dialog" aria-modal="true" aria-labelledby="pkTitle" hidden>
+  <h2 id="pkTitle">Add item</h2>
+  <button type="button" class="btn primary custom" id="pkCustom">+ Custom item</button>
+  <input type="search" class="find" id="pkFind" placeholder="Search common tasks and warranties" aria-label="Search common tasks and warranties" autocomplete="off">
+  <p class="hint">Tap one to fill in its usual schedule. You can change anything before saving.</p>
+  <div id="pkList"></div>
+  <div class="acts" style="margin-top:.8rem"><button type="button" class="btn" id="pkCancel" style="flex:1">Cancel</button></div>
+</div>
+<form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden novalidate>
+  <h2 id="sheetTitle">Add item</h2>
+  <div class="field">
+    <span class="lab">Type</span>
+    <div class="seg">
+      <label><input type="radio" name="kind" value="task" checked><span>Recurring task</span></label>
+      <label><input type="radio" name="kind" value="warranty"><span>Warranty</span></label>
+    </div>
+  </div>
+  <div class="field"><label for="fName">Name</label><input type="text" id="fName" maxlength="80" placeholder="Furnace filter" autocomplete="off"></div>
+  <div class="field" id="gEvery"><span class="lab">Repeat every</span>
+    <div class="every">
+      <input type="number" id="fEvery" min="1" max="999" inputmode="numeric" value="3" aria-label="Repeat count">
+      <select id="fUnit" aria-label="Repeat unit">
+        <option value="day">days</option><option value="week">weeks</option>
+        <option value="month" selected>months</option><option value="year">years</option>
+      </select>
+    </div>
+  </div>
+  <div class="field" id="gMode"><label for="fMode">When Done is tapped</label>
+    <select id="fMode">
+      <option value="fixed">Keep the fixed schedule</option>
+      <option value="fromDone">Count from the day I finish</option>
+    </select>
+  </div>
+  <div class="field"><label for="fDue" id="lDue">Next due</label><input type="date" id="fDue"></div>
+  <div class="field"><label for="fNotes">Notes (optional)</label><textarea id="fNotes" maxlength="300" placeholder="Size 16x25x1, buy at the hardware store"></textarea></div>
+  <p class="err" id="err" role="alert"></p>
+  <div class="acts">
+    <button type="button" class="btn" id="btnCancel">Cancel</button>
+    <button type="submit" class="btn primary">Save</button>
+  </div>
+</form>
+
+<div class="toast" aria-live="polite"><div class="in" id="toast" hidden><span class="msg" id="toastMsg"></span><button id="toastUndo" hidden>Undo</button></div></div>
+
+<script>
+var HM = (function () {
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function parse(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], d = +m[3];
+    if (mo < 1 || mo > 12 || d < 1 || d > dim(y, mo)) return null;
+    return { y: y, m: mo, d: d };
+  }
+  function iso(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
+  function dim(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+  function today() {
+    var t = new Date();
+    return iso(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  }
+  function dayNum(s) {
+    var p = parse(s);
+    return Date.UTC(p.y, p.m - 1, p.d) / 86400000;
+  }
+  function daysBetween(a, b) { return Math.round(dayNum(b) - dayNum(a)); }
+  function addDays(s, n) {
+    var t = new Date((dayNum(s) + n) * 86400000);
+    return iso(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
+  }
+  // add whole months to the anchor, keeping the anchor's day when the month allows it
+  function addMonths(s, n) {
+    var p = parse(s);
+    var total = p.y * 12 + (p.m - 1) + n;
+    var y = Math.floor(total / 12), m = (total % 12) + 1;
+    return iso(y, m, Math.min(p.d, dim(y, m)));
+  }
+  function step(anchor, every, unit, k) {
+    if (unit === 'day') return addDays(anchor, every * k);
+    if (unit === 'week') return addDays(anchor, every * 7 * k);
+    if (unit === 'month') return addMonths(anchor, every * k);
+    return addMonths(anchor, every * 12 * k);
+  }
+  // fixed schedule: smallest anchor + k*interval strictly after both the current due date and today
+  function rollFixed(anchor, every, unit, due, tdy) {
+    var floor = daysBetween(due, tdy) > 0 ? tdy : due;
+    var k = 1, c = step(anchor, every, unit, k);
+    while (daysBetween(floor, c) <= 0 && k < 100000) { k++; c = step(anchor, every, unit, k); }
+    return c;
+  }
+  function rollFromDone(every, unit, tdy) { return step(tdy, every, unit, 1); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  // returns { item, prev } so the caller can undo
+  function markDone(item, tdy) {
+    var prev = clone(item), n = clone(item);
+    n.last = tdy;
+    if (item.mode === 'fromDone') n.due = rollFromDone(item.every, item.unit, tdy);
+    else n.due = rollFixed(item.anchor || item.due, item.every, item.unit, item.due, tdy);
+    return { item: n, prev: prev };
+  }
+  // days > 0 future, 0 today (not yet overdue), < 0 overdue or expired
+  function status(item, tdy) {
+    var days = daysBetween(tdy, item.due);
+    var soon = item.kind === 'warranty' ? 60 : 30;
+    var state = days < 0 ? 'overdue' : days <= soon ? 'soon' : 'ok';
+    return { days: days, state: state };
+  }
+  return { parse: parse, iso: iso, today: today, dayNum: dayNum, daysBetween: daysBetween,
+    addDays: addDays, addMonths: addMonths, step: step, rollFixed: rollFixed,
+    rollFromDone: rollFromDone, markDone: markDone, status: status, clone: clone };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'appaday165.homeupkeep.v1';
+  var UNITS = { day: 1, week: 1, month: 1, year: 1 };
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var items = [], filter = 'all', expanded = {}, editingId = null, storageOK = true;
+  var undoFn = null, toastTimer = null;
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function fmt(s) { var p = HM.parse(s); return p ? MONTHS[p.m - 1] + ' ' + p.d + ', ' + p.y : ''; }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
+  /* ---------- storage ---------- */
+  function sanitizeItem(o) {
+    if (!o || typeof o !== 'object') return null;
+    var name = String(o.name == null ? '' : o.name).trim().slice(0, 80);
+    if (!name || !HM.parse(o.due)) return null;
+    var kind = o.kind === 'warranty' ? 'warranty' : 'task';
+    var it = { id: String(o.id || uid()).slice(0, 40), name: name, kind: kind, due: o.due,
+      notes: String(o.notes == null ? '' : o.notes).slice(0, 300), last: HM.parse(o.last) ? o.last : '' };
+    if (kind === 'task') {
+      var ev = Math.floor(Number(o.every));
+      if (!(ev >= 1 && ev <= 999)) ev = 1;
+      it.every = ev;
+      it.unit = UNITS[o.unit] ? o.unit : 'month';
+      it.mode = o.mode === 'fromDone' ? 'fromDone' : 'fixed';
+      it.anchor = HM.parse(o.anchor) ? o.anchor : o.due;
+    }
+    return it;
+  }
+  function sanitizeList(arr) {
+    if (!Array.isArray(arr)) return [];
+    var seen = {}, out = [];
+    arr.forEach(function (o) {
+      var it = sanitizeItem(o);
+      if (!it) return;
+      if (seen[it.id]) it.id = uid();
+      seen[it.id] = 1;
+      out.push(it);
+    });
+    return out;
+  }
+  function load() {
+    var raw = null;
+    try { localStorage.setItem('__t165', '1'); localStorage.removeItem('__t165'); raw = localStorage.getItem(KEY); }
+    catch (e) { storageOK = false; }
+    if (raw) {
+      try { var d = JSON.parse(raw); items = sanitizeList(d && d.items ? d.items : d); } catch (e) { items = []; }
+    }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ v: 1, items: items })); }
+    catch (e) { storageOK = false; }
+    $('storeNote').hidden = storageOK;
+  }
+  function idx(id) { for (var i = 0; i < items.length; i++) if (items[i].id === id) return i; return -1; }
+
+  /* ---------- toast ---------- */
+  function toast(msg, undo) {
+    clearTimeout(toastTimer);
+    undoFn = undo || null;
+    $('toastMsg').textContent = msg;
+    $('toastUndo').hidden = !undo;
+    $('toast').hidden = false;
+    toastTimer = setTimeout(hideToast, undo ? 8000 : 3500);
+  }
+  function hideToast() { $('toast').hidden = true; undoFn = null; }
+
+  /* ---------- render ---------- */
+  function dueLabel(it, s) {
+    var d = s.days;
+    if (it.kind === 'warranty') {
+      if (d < 0) return 'Expired ' + plural(-d, 'day') + ' ago';
+      if (d === 0) return 'Expires today';
+      if (d === 1) return 'Expires tomorrow';
+      return 'Expires in ' + plural(d, 'day');
+    }
+    if (d < 0) return 'Overdue ' + plural(-d, 'day');
+    if (d === 0) return 'Due today';
+    if (d === 1) return 'Due tomorrow';
+    return 'Due in ' + plural(d, 'day');
+  }
+  function scheduleText(it) {
+    if (it.kind === 'warranty') return 'Warranty ends ' + fmt(it.due);
+    return 'Every ' + (it.every === 1 ? it.unit : it.every + ' ' + it.unit + 's') + ', ' +
+      (it.mode === 'fromDone' ? 'counted from the day you finish' : 'on a fixed schedule');
+  }
+  function render() {
+    var t = HM.today();
+    var rows = items.map(function (it) { return { it: it, s: HM.status(it, t) }; });
+    var c = { overdue: 0, soon: 0, war: 0 };
+    rows.forEach(function (r) {
+      if (r.s.state === 'overdue') c.overdue++;
+      if (r.s.state === 'soon') c.soon++;
+      if (r.it.kind === 'warranty') c.war++;
+    });
+    $('nOver').textContent = c.overdue; $('nSoon').textContent = c.soon; $('nAll').textContent = items.length;
+    $('cAll').textContent = items.length; $('cOver').textContent = c.overdue;
+    $('cSoon').textContent = c.soon; $('cWar').textContent = c.war;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'), function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-filter') === filter ? 'true' : 'false');
+    });
+    var vis = rows.filter(function (r) {
+      if (filter === 'overdue') return r.s.state === 'overdue';
+      if (filter === 'soon') return r.s.state === 'soon';
+      if (filter === 'warranty') return r.it.kind === 'warranty';
+      return true;
+    });
+    vis.sort(function (a, b) {
+      return a.it.due < b.it.due ? -1 : a.it.due > b.it.due ? 1 : a.it.name.localeCompare(b.it.name);
+    });
+    $('list').innerHTML = vis.map(function (r) {
+      var it = r.it, open = !!expanded[it.id];
+      var detail = '';
+      if (open) {
+        detail = '<div class="detail"><div>' + esc(scheduleText(it)) + '</div>' +
+          (it.kind === 'task' ? '<div>' + (it.last ? 'Last done ' + esc(fmt(it.last)) : 'Not marked done yet') + '</div>' : '') +
+          (it.notes ? '<div class="notes">' + esc(it.notes) + '</div>' : '') +
+          '<div class="acts"><button class="btn" data-act="edit">Edit</button>' +
+          '<button class="btn danger" data-act="del">Delete</button></div></div>';
+      }
+      return '<li class="card s-' + r.s.state + '" data-id="' + esc(it.id) + '"><div class="row">' +
+        '<button class="head" data-act="toggle" aria-expanded="' + open + '">' +
+        '<span class="title">' + esc(it.name) + '</span>' +
+        '<span class="meta"><span class="pill">' + esc(dueLabel(it, r.s)) + '</span>' +
+        (it.kind === 'warranty' ? '<span class="tag">Warranty</span>' : '') +
+        '<span>' + esc(fmt(it.due)) + '</span></span></button>' +
+        (it.kind === 'task' ? '<button class="done" data-act="done" aria-label="Mark ' + esc(it.name) + ' done">Done</button>' : '') +
+        '</div>' + detail + '</li>';
+    }).join('');
+    var eb = $('emptyBox');
+    if (!items.length) {
+      eb.innerHTML = '<div class="empty"><h2>Nothing tracked yet</h2><p>Add the chores that sneak up on you, or start with a ready made set and edit it.</p>' +
+        '<div class="btns"><button class="btn primary" data-act="starter">Add starter set</button>' +
+        '<button class="btn" data-act="add">Add my own</button></div></div>';
+    } else if (!vis.length) {
+      eb.innerHTML = '<div class="empty"><h2>Nothing here</h2><p>No items match this filter right now.</p>' +
+        '<div class="btns"><button class="btn" data-filter="all">Show all</button></div></div>';
+    } else { eb.innerHTML = ''; }
+  }
+
+  /* ---------- actions ---------- */
+  function doDone(id) {
+    var i = idx(id); if (i < 0) return;
+    var r = HM.markDone(items[i], HM.today());
+    items[i] = r.item; save(); render();
+    toast(r.item.name + ' rolled to ' + fmt(r.item.due), function () {
+      var j = idx(id); if (j >= 0) items[j] = r.prev; save(); render();
+    });
+  }
+  function doDelete(id) {
+    var i = idx(id); if (i < 0) return;
+    var gone = items.splice(i, 1)[0];
+    delete expanded[id]; save(); render();
+    toast('Deleted ' + gone.name, function () {
+      items.splice(Math.min(i, items.length), 0, gone); save(); render();
+    });
+  }
+  function addStarter() {
+    var t = HM.today();
+    var set = [
+      { name: 'Replace furnace filter', every: 3, unit: 'month', off: -2, notes: 'Check the size printed on the old filter.' },
+      { name: 'Replace smoke and CO alarm batteries', every: 6, unit: 'month', off: 18, notes: 'Press the test button after swapping.' },
+      { name: 'Clean dryer vent', every: 1, unit: 'year', off: 33 },
+      { name: 'Clean gutters', every: 6, unit: 'month', off: 52 },
+      { name: 'Flush water heater', every: 12, unit: 'month', off: 88 },
+      { name: 'Dishwasher warranty', kind: 'warranty', off: 260, notes: 'Keep the receipt and model number together.' }
+    ];
+    var have = {}; items.forEach(function (it) { have[it.name.toLowerCase()] = 1; });
+    var before = items.slice(), added = 0;
+    set.forEach(function (s) {
+      if (have[s.name.toLowerCase()]) return;
+      var due = HM.addDays(t, s.off);
+      var it = { id: uid(), name: s.name, kind: s.kind || 'task', due: due, notes: s.notes || '', last: '' };
+      if (it.kind === 'task') { it.every = s.every; it.unit = s.unit; it.mode = 'fixed'; it.anchor = due; }
+      items.push(it); added++;
+    });
+    save(); render();
+    toast(added ? 'Added ' + plural(added, 'starter item') : 'Starter items are already in your list', added ? function () {
+      items = before; save(); render();
+    } : null);
+  }
+  function exportJson() {
+    if (!items.length) { toast('Nothing to export yet'); return; }
+    var data = JSON.stringify({ app: 'appaday-165-home-maintenance-log', v: 1, exported: HM.today(), items: items }, null, 2);
+    try {
+      var url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = 'home-upkeep-' + HM.today() + '.json';
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      toast('Exported ' + plural(items.length, 'item'));
+    } catch (e) { toast('Export is not supported in this browser'); }
+  }
+  function importText(text) {
+    var d;
+    try { d = JSON.parse(text); } catch (e) { toast('That file is not valid JSON'); return; }
+    var list = sanitizeList(d && d.items ? d.items : d);
+    if (!list.length) { toast('No usable items found in that file'); return; }
+    var before = items.slice();
+    list.forEach(function (n) {
+      var i = idx(n.id);
+      if (i >= 0) items[i] = n; else items.push(n);
+    });
+    save(); render();
+    toast('Imported ' + plural(list.length, 'item'), function () { items = before; save(); render(); });
+  }
+
+
+  /* ---------- common tasks library ---------- */
+  var PRESETS = [
+    { g: 'Heating and cooling', t: [
+      ['Replace furnace filter', 3, 'month', 'Check the size printed on the old filter.'],
+      ['Schedule HVAC tune-up', 12, 'month', 'Service heating in fall and cooling in spring.'],
+      ['Clean AC condenser coils', 12, 'month', ''],
+      ['Flush AC condensate drain line', 6, 'month', 'Pour a cup of vinegar down the line.'],
+      ['Replace humidifier pad', 12, 'month', ''],
+      ['Replace thermostat batteries', 12, 'month', ''],
+      ['Clean bathroom exhaust fans', 6, 'month', ''],
+      ['Sweep and inspect chimney', 12, 'month', '']
+    ] },
+    { g: 'Safety', t: [
+      ['Test smoke and CO alarms', 1, 'month', 'Press and hold the test button.'],
+      ['Replace smoke and CO alarm batteries', 6, 'month', 'Press the test button after swapping.'],
+      ['Replace smoke alarms', 10, 'year', 'Check the date printed on the back.'],
+      ['Replace CO alarms', 7, 'year', 'Check the date printed on the back. Many last 5 to 10 years.'],
+      ['Check fire extinguisher gauge', 12, 'month', 'Replace it if the needle is out of the green.'],
+      ['Test GFCI outlets', 1, 'month', ''],
+      ['Test garage door auto reverse', 1, 'month', ''],
+      ['Test sump pump', 3, 'month', 'Pour a bucket of water into the pit.'],
+      ['Test radon level', 24, 'month', ''],
+      ['Review home insurance', 12, 'month', '']
+    ] },
+    { g: 'Plumbing and water', t: [
+      ['Flush water heater', 12, 'month', ''],
+      ['Test water heater pressure relief valve', 12, 'month', ''],
+      ['Replace water heater anode rod', 36, 'month', ''],
+      ['Replace refrigerator water filter', 6, 'month', ''],
+      ['Replace whole house water filter', 6, 'month', 'Intervals vary by filter. Check the label.'],
+      ['Clean faucet aerators', 6, 'month', ''],
+      ['Check under sinks for leaks', 6, 'month', ''],
+      ['Check water softener salt', 1, 'month', ''],
+      ['Exercise main water shutoff valve', 12, 'month', ''],
+      ['Replace washing machine hoses', 60, 'month', ''],
+      ['Pump septic tank', 36, 'month', 'Usually every 3 to 5 years.']
+    ] },
+    { g: 'Exterior and yard', t: [
+      ['Clean gutters', 6, 'month', ''],
+      ['Inspect roof', 12, 'month', ''],
+      ['Check caulk and weatherstripping', 12, 'month', ''],
+      ['Winterize outdoor faucets', 12, 'month', 'Do this before the first hard freeze.'],
+      ['Winterize sprinklers', 12, 'month', 'Do this before the first hard freeze.'],
+      ['Inspect foundation and grading', 12, 'month', ''],
+      ['Trim trees and shrubs', 12, 'month', ''],
+      ['Pressure wash siding and deck', 12, 'month', ''],
+      ['Seal deck', 24, 'month', ''],
+      ['Seal driveway', 24, 'month', ''],
+      ['Lubricate garage door', 6, 'month', ''],
+      ['Service lawn mower', 12, 'month', ''],
+      ['Service snow blower', 12, 'month', ''],
+      ['Termite inspection', 12, 'month', ''],
+      ['Pest control treatment', 3, 'month', '']
+    ] },
+    { g: 'Appliances', t: [
+      ['Clean dryer vent', 12, 'month', ''],
+      ['Clean refrigerator coils', 6, 'month', ''],
+      ['Clean dishwasher filter', 3, 'month', ''],
+      ['Clean washing machine', 3, 'month', 'Run the cleaning cycle.'],
+      ['Clean range hood filter', 3, 'month', ''],
+      ['Clean garbage disposal', 3, 'month', ''],
+      ['Deep clean oven', 6, 'month', '']
+    ] },
+    { g: 'Inside the house', t: [
+      ['Replace water leak sensor batteries', 12, 'month', ''],
+      ['Replace security sensor batteries', 12, 'month', ''],
+      ['Check attic insulation and ventilation', 12, 'month', ''],
+      ['Reseal grout', 12, 'month', ''],
+      ['Deep clean carpets', 12, 'month', '']
+    ] },
+    { g: 'Warranties', w: true, t: [
+      ['Appliance warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Dishwasher warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Refrigerator warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Washer warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Dryer warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Range or oven warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Microwave warranty', 1, 'year', 'Keep the receipt and model number together.'],
+      ['Water heater warranty', 6, 'year', 'Terms vary. Check your paperwork.'],
+      ['Furnace warranty', 10, 'year', 'Parts coverage usually needs the unit registered.'],
+      ['AC warranty', 10, 'year', 'Parts coverage usually needs the unit registered.'],
+      ['Roof warranty', 25, 'year', 'Terms vary widely. Check your paperwork.'],
+      ['Window warranty', 20, 'year', 'Terms vary. Check your paperwork.'],
+      ['Home warranty plan', 1, 'year', ''],
+      ['Builder warranty, workmanship', 1, 'year', ''],
+      ['Builder warranty, systems', 2, 'year', ''],
+      ['Builder warranty, structure', 10, 'year', '']
+    ] }
+  ];
+  function presetItem(g, row) {
+    var today = HM.today(), w = !!g.w;
+    return { kind: w ? 'warranty' : 'task', name: row[0], every: row[1], unit: row[2], notes: row[3],
+      due: w ? HM.addMonths(today, row[1] * 12) : HM.step(today, row[1], row[2], 1) };
+  }
+  function presetWhen(g, row) {
+    if (g.w) return 'Typical term ' + plural(row[1], 'year');
+    return 'Every ' + (row[1] === 1 ? row[2] : row[1] + ' ' + row[2] + 's');
+  }
+  function renderPicker() {
+    var q = $('pkFind').value.trim().toLowerCase(), have = {}, html = '', n = 0;
+    items.forEach(function (it) { have[it.name.toLowerCase()] = 1; });
+    PRESETS.forEach(function (g, gi) {
+      var rows = '';
+      g.t.forEach(function (row, ri) {
+        if (q && (row[0] + ' ' + g.g).toLowerCase().indexOf(q) < 0) return;
+        n++;
+        rows += '<button type="button" class="pk-row" data-g="' + gi + '" data-r="' + ri + '"><span class="pn">' + esc(row[0]) +
+          '</span><span class="pe">' + (have[row[0].toLowerCase()] ? '<i>In list</i>' : '') + esc(presetWhen(g, row)) + '</span></button>';
+      });
+      if (rows) html += '<div class="pk-group">' + esc(g.g) + '</div>' + rows;
+    });
+    $('pkList').innerHTML = n ? html : '<p class="pk-none">Nothing matches. Tap Custom item to add your own.</p>';
+  }
+  function openPicker() {
+    clearTimeout(toastTimer); hideToast();
+    $('pkFind').value = ''; renderPicker();
+    $('scrim').hidden = false; $('picker').hidden = false; $('sheet').hidden = true;
+    $('picker').scrollTop = 0;
+  }
+
+  /* ---------- sheet ---------- */
+  function kindVal() { return document.querySelector('input[name=kind]:checked').value; }
+  function syncKind() {
+    var w = kindVal() === 'warranty';
+    $('gEvery').hidden = w; $('gMode').hidden = w;
+    $('lDue').textContent = w ? 'Warranty expires on' : 'Next due';
+  }
+  function openSheet(id, preset) {
+    clearTimeout(toastTimer); hideToast();
+    editingId = id || null;
+    var it = id ? items[idx(id)] : preset || null, isTask = !it || it.kind === 'task';
+    $('sheetTitle').textContent = id ? 'Edit item' : 'Add item';
+    document.querySelector('input[name=kind][value=' + (it ? it.kind : 'task') + ']').checked = true;
+    $('fName').value = it ? it.name : '';
+    $('fEvery').value = it && isTask && it.every ? it.every : 3;
+    $('fUnit').value = it && isTask && it.unit ? it.unit : 'month';
+    $('fMode').value = it && isTask && it.mode ? it.mode : 'fixed';
+    $('fDue').value = it ? it.due : HM.today();
+    $('fNotes').value = it ? it.notes : '';
+    $('err').textContent = '';
+    syncKind();
+    $('picker').hidden = true; $('scrim').hidden = false; $('sheet').hidden = false;
+    setTimeout(function () { $('fName').focus(); }, 30);
+  }
+  function closeSheet() { $('scrim').hidden = true; $('sheet').hidden = true; $('picker').hidden = true; editingId = null; }
+  function submitSheet(e) {
+    e.preventDefault();
+    var name = $('fName').value.trim(), due = $('fDue').value, kind = kindVal();
+    if (!name) { $('err').textContent = 'Give it a name first.'; return; }
+    if (!HM.parse(due)) { $('err').textContent = 'Pick a valid date.'; return; }
+    var i = editingId ? idx(editingId) : -1, old = i >= 0 ? items[i] : null;
+    var it = { id: old ? old.id : uid(), name: name, kind: kind, due: due,
+      notes: $('fNotes').value.trim().slice(0, 300), last: old ? old.last : '' };
+    if (kind === 'task') {
+      var ev = Math.floor(Number($('fEvery').value));
+      if (!(ev >= 1 && ev <= 999)) { $('err').textContent = 'Repeat every needs a number from 1 to 999.'; return; }
+      it.every = ev; it.unit = $('fUnit').value; it.mode = $('fMode').value;
+      var same = old && old.kind === 'task' && old.due === due && old.every === ev && old.unit === it.unit;
+      it.anchor = same ? old.anchor : due;
+    }
+    if (i >= 0) items[i] = it; else items.push(it);
+    save(); closeSheet(); render(); toast('Saved ' + name);
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', function (e) {
+    var menu = $('menu');
+    if (!menu.hidden && !e.target.closest('#menu') && !e.target.closest('#btnMore')) {
+      menu.hidden = true; $('btnMore').setAttribute('aria-expanded', 'false');
+    }
+    var f = e.target.closest('[data-filter]');
+    if (f) { filter = f.getAttribute('data-filter'); render(); return; }
+    var a = e.target.closest('[data-act]');
+    if (!a) return;
+    var act = a.getAttribute('data-act');
+    var card = a.closest('.card'), id = card ? card.getAttribute('data-id') : null;
+    if (act === 'toggle') { expanded[id] = !expanded[id]; render(); }
+    else if (act === 'done') doDone(id);
+    else if (act === 'edit') openSheet(id);
+    else if (act === 'del') doDelete(id);
+    else if (act === 'starter') addStarter();
+    else if (act === 'add') openPicker();
+  });
+  $('btnAdd').addEventListener('click', openPicker);
+  $('pkCustom').addEventListener('click', function () { openSheet(); });
+  $('pkCancel').addEventListener('click', closeSheet);
+  $('pkFind').addEventListener('input', renderPicker);
+  $('pkList').addEventListener('click', function (e) {
+    var r = e.target.closest('.pk-row'); if (!r) return;
+    var g = PRESETS[+r.getAttribute('data-g')];
+    openSheet(null, presetItem(g, g.t[+r.getAttribute('data-r')]));
+  });
+  $('btnMore').addEventListener('click', function () {
+    var m = $('menu'); m.hidden = !m.hidden;
+    $('btnMore').setAttribute('aria-expanded', m.hidden ? 'false' : 'true');
+    if (!m.hidden) $('miExport').focus();
+  });
+  $('miExport').addEventListener('click', function () { $('menu').hidden = true; exportJson(); });
+  $('miImport').addEventListener('click', function () { $('menu').hidden = true; $('fileIn').click(); });
+  $('miStarter').addEventListener('click', function () { $('menu').hidden = true; addStarter(); });
+  $('fileIn').addEventListener('change', function () {
+    var file = this.files && this.files[0], input = this;
+    if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function () { importText(String(rd.result)); input.value = ''; };
+    rd.onerror = function () { toast('Could not read that file'); input.value = ''; };
+    rd.readAsText(file);
+  });
+  $('sheet').addEventListener('submit', submitSheet);
+  $('btnCancel').addEventListener('click', closeSheet);
+  $('scrim').addEventListener('click', closeSheet);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=kind]'), function (r) { r.addEventListener('change', syncKind); });
+  $('toastUndo').addEventListener('click', function () { var f = undoFn; hideToast(); if (f) f(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (!$('sheet').hidden || !$('picker').hidden) closeSheet();
+      else if (!$('menu').hidden) { $('menu').hidden = true; $('btnMore').setAttribute('aria-expanded', 'false'); }
+    }
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(); });
+
+  load(); $('storeNote').hidden = storageOK; render();
+})();
+</script>
+</body>
+</html>
